@@ -1,0 +1,48 @@
+#! zsh
+local login='if .login then .login | "\nLogin:\n\t Username:\t\(.username)\n\tﳳ Password:\t\(.password)\n\t爵URIs:", .uris[].uri | "\t\t\(.)" else "" end'
+local notes='if .notes then "\n Notes:\n\n\(.notes)" else "" end'
+local fields='if .fields then .fields[] | "\(.name):\n\t\(.value)" else "" end'
+local item_format="ruby -ryaml -rjson -e 'puts YAML.dump(JSON.parse(STDIN.read))'"
+# local item_format="jq --raw-output '.name,  $login, $notes, $fields'"
+local extract_id='s/.*(\(.*\))/\1/'
+local trim_whitespace='s/^[ \t]*//'
+local preview="echo {} | sed  '$extract_id' | read -r item_id; bw get item \$item_id | $item_format | bat --color=always --style=plain -l yaml"
+local selection=$(bw list items | jq --raw-output '.[] | "\(.name);(\(.id))"' | column -t -s ';' | fzf --no-multi --no-mouse --preview=$preview --preview-window=hidden --bind '?:toggle-preview' --header='[?]: toggle preview')
+if [[ -n $selection ]]; then
+  echo $selection
+  local item_id=$(echo $selection | sed $extract_id | sed -e $trim_whitespace)
+  echo "Copy to clipboard: user[n]name, [p]assword, [U]RI, [a]ll as JSON"
+  read input
+  local object=$(
+    case $input in
+      (#i)n) echo "username"
+      ;;
+      (#i)p) echo "password"
+      ;;
+      (#i)u) echo "uri"
+      ;;
+      (#i)a) echo "item"
+      ;;
+    esac
+   )
+  local output=$(bw get $object $item_id --raw)
+  if [[ `uname` == Darwin ]];then
+    echo $output | pbcopy
+  elif (( $+commands[xclip] )); then
+    echo $output | xclip
+  else
+    echo 'no supported clipboard function found. (xclip, pbcopy)\r'
+  fi
+fi
+
+# TODO analyise item to give better copy options (like fields etc.)
+# local copy_username='if .username then "User[n]ame" else "" end'
+# local copy_password='if .password then "[P]assword" else "" end'
+# local copy_uris='if .uris then (.uris | to_entries | .[] | "\t[U\(.key)] (.value.uri)") else "" end'
+# local copy_login="if .login then .login | $copy_username, $copy_password, else \"\" end"
+# if [[ -v item_id ]]; then
+#   local item=$(bw get item $item_id)
+#   local item=$(bw get item 5dd55f71-c2c5-4def-8e37-aab300dce827)
+#   local copy_filter="'\"Copy to clipboard\", $copy_login'"
+#   echo $item | jq --raw-output $copy_filter
+# fi

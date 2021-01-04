@@ -1,0 +1,17 @@
+#! zsh
+
+local bw_cache=$XDG_CACHE_HOME/bitwarden
+local session_cache=$bw_cache/session
+
+echo "session cache file: $session_cache"
+local session=$(bw unlock --raw)
+echo "New session $session"
+if [[ -v session ]]; then
+  local bw_status=$(bw status --session $session | jq --raw-output .status)
+  if [[ $bw_status == unlocked ]]; then
+    echo "$session" > $session_cache
+    export BW_SESSION=$session
+  else
+    echo "Error unlockking Bitwarden vault.\r"; false
+  fi
+fi
