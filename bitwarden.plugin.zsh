@@ -7,6 +7,9 @@ if (( $+commands[bw] )); then
   fpath=("${0:h}/functions" "${fpath[@]}")
   autoload -Uz $fpath[1]/*(.:t)
 
+  : ${BITWARDENCLI_APPDATA_DIR:=$XDG_DATA_HOME/bitwarden}
+  export BITWARDENCLI_APPDATA_DIR
+
   __bitwarden_init() {
     local session=$(__bitwarden_cache_read_session)
     __bitwarden_set_session $session
