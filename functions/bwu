@@ -1,4 +1,4 @@
-#! zsh
+#!/usr/bin/env zsh
 
 local bw_cache=$XDG_CACHE_HOME/bitwarden
 local session_cache=$bw_cache/session

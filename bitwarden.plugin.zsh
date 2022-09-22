@@ -1,52 +1,37 @@
-#! zsh
+#!/usr/bin/env zsh
 
 0="${ZERO:-${${0:#$ZSH_ARGZERO}:-${(%):-%N}}}"
 0="${${(M)0:#/*}:-$PWD/$0}"
 
-if (( $+commands[bw] )); then
+if (( ! $+commands[bw] )); then
+  echo 'Bitwarden-CLI not installed\r'
+elif (( ! $+commands[jq] )); then
+  echo 'jq not installed\r'
+else
   fpath=("${0:h}/functions" "${fpath[@]}")
   autoload -Uz $fpath[1]/*(.:t)
 
+  # ensure cache dir is created
+  : ${BW_CACHE_DIR:="$XDG_CACHE_HOME/bitwarden"}
+  [[ -d $BW_CACHE_DIR ]] || mkdir -p $BW_CACHE_DIR
+
+  bw_get_status() {
+    echo  $(bw status --session ${1:=$BW_SESSION} | jq --raw-output .status 2>/dev/null)
+  }
+
+  # read cached session
+  : ${BW_SESSION:=$(cat $cache_dir/session 2>/dev/null)}
+  : ${BW_VAULT_STATUS::=$(bw_get_status $BW_SESSION)}
+  if [[ ! $BW_VAULT_STATUS == 'unlocked' ]]; then
+    echo "Bitwarden vault $BW_VAULT_STATUS\r"
+  else
+    export BW_SESSION
+  fi
   : ${BITWARDENCLI_APPDATA_DIR:=$XDG_DATA_HOME/bitwarden}
   export BITWARDENCLI_APPDATA_DIR
 
-  __bitwarden_init() {
-    local session=$(__bitwarden_cache_read_session)
-    __bitwarden_set_session $session
-  }
+  # function () {
+  #   [[ (bw status ${BW_SESSION:+"--session $BW_SESSION"} | jq --raw-output .status) == 'unlocked' ]] && echo '' || echo '' 
+  # }
 
-  __bitwarden_set_session() {
-    local session=$1
-    if [[ -n $session ]]; then
-      local bw_status=$(bw status --session $session | jq --raw-output .status 2>/dev/null)
-      if [[ $bw_status == unlocked ]]; then
-        export BW_SESSION=$session
-        __bitwarden_cache_write_session $session
-      else
-        echo 'Bitwarden session expired\r'
-      fi
-    else
-      echo 'Bitwarden vault locked\r'
-    fi
-  }
-
-  __bitwarden_cache_write_session() {
-    local session=$1
-    echo $session > $(__bitwarden_cache_dir)/session
-  }
-
-  __bitwarden_cache_read_session() {
-    local cache_dir=$(__bitwarden_cache_dir)
-    [[ -f $cache_dir/session ]] && cat $cache_dir/session
-  }
-
-  __bitwarden_cache_dir() {
-    local cache_dir=$XDG_CACHE_HOME/bitwarden
-    [[ -d $cache_dir ]] || mkdir -p $cache_dir
-    echo $cache_dir
-  }
-
-  __bitwarden_init
-else
-  echo 'Bitwarden-CLI not installed\r'
 fi

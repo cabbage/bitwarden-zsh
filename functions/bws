@@ -1,4 +1,7 @@
-#! zsh
+#!/usr/bin/env zsh
+
+if [[ ! $(bw unlock --check) ]] && exit 1
+
 local login='if .login then .login | "\nLogin:\n\t Username:\t\(.username)\n\tﳳ Password:\t\(.password)\n\t爵URIs:", .uris[].uri | "\t\t\(.)" else "" end'
 local notes='if .notes then "\n Notes:\n\n\(.notes)" else "" end'
 local fields='if .fields then .fields[] | "\(.name):\n\t\(.value)" else "" end'
@@ -8,6 +11,7 @@ local extract_id='s/.*(\(.*\))/\1/'
 local trim_whitespace='s/^[ \t]*//'
 local preview="echo {} | sed  '$extract_id' | read -r item_id; bw get item \$item_id | $item_format | bat --color=always --style=plain -l yaml"
 local selection=$(bw list items | jq --raw-output '.[] | "\(.name);(\(.id))"' | column -t -s ';' | fzf --no-multi --no-mouse --preview=$preview --preview-window=hidden --bind '?:toggle-preview' --header='[?]: toggle preview')
+
 if [[ -n $selection ]]; then
   echo $selection
   local item_id=$(echo $selection | sed $extract_id | sed -e $trim_whitespace)
